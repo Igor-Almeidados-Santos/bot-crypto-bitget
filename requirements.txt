@@ -1,0 +1,10 @@
+# requirements.txt
+ccxt       # Integração com exchanges (Bitget) [[7]]
+pandas      # Manipulação de dados em tempo real
+numpy     # Cálculos numéricos avançados
+schedule     # Agendamento de operações
+python-decouple # Gerenciamento de variáveis de ambiente [[5]]
+loguru       # Logs estruturados
+pytest       # Testes automatizados
+ta          # Indicadores técnicos (RSI, MACD, etc.)
+matplotlib
