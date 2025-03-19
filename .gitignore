@@ -1,1 +1,32 @@
+# Arquivos sensíveis
 .env
+*.log
+backtest_results.csv
+
+# Ambiente virtual
+venv/
+env/
+*.pyc
+__pycache__/
+
+# Streamlit
+.streamlit/
+*.streamlit/
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Sistemas operacionais
+Thumbs.db
+.DS_Store
+desktop.ini
+
+# Testes
+.pytest_cache/
+tests/__pycache__/
+
+# Documentação gerada
+docs/api/
