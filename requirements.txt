@@ -7,4 +7,11 @@ python-decouple # Gerenciamento de variáveis de ambiente [[5]]
 loguru       # Logs estruturados
 pytest       # Testes automatizados
 ta          # Indicadores técnicos (RSI, MACD, etc.)
-matplotlib
+matplotlib 
+pytest-mock # Permite usar mocker em testes
+mkdocs
+mkdocs-material 
+pdoc
+pdoc3
+streamlit
+streamlit-autorefresh

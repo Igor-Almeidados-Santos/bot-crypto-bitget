@@ -12,34 +12,36 @@ class RiskManager:
         self.symbol = symbol
 
     def calculate_position_size(self, entry_price, stop_loss_price):
-        """
-        Calcula o tamanho da posição com base no risco máximo por trade.
-        
-        Args:
-            entry_price (float): Preço de entrada
-            stop_loss_price (float): Preço do stop-loss
-        
-        Returns:
-            tuple: (quantidade_crypto, valor_risco)
-        """
+        """Calcula tamanho de posição com tratamento para preços iguais."""
         try:
-            # Cálculo do risco em valor absoluto
-            risk_amount = self.balance * RISK_PER_TRADE
+            if entry_price <= stop_loss_price:
+                logger.error("Preço de entrada não pode ser <= stop-loss")
+                return 0, 0
             
-            # Cálculo da quantidade de crypto com alavancagem
+            risk_amount = self.balance * RISK_PER_TRADE
             delta_price = entry_price - stop_loss_price
             quantity = (risk_amount / delta_price) * LEVERAGE
             
-            logger.info(f"Risco calculado: ${risk_amount:.2f} | Quantidade: {quantity:.5f} {self.symbol.split('/')[0]}")
             return quantity, risk_amount
-        
+        except ZeroDivisionError:
+            logger.error("Stop-loss igual ao preço de entrada (divisão por zero)")
+            return 0, 0
         except Exception as e:
             logger.error(f"Erro no cálculo de risco: {e}")
             return 0, 0
 
     def validate_stop_loss(self, current_price, stop_loss_price):
         """Valida se o stop-loss está dentro de parâmetros seguros."""
-        if abs(current_price - stop_loss_price) / current_price > 0.10:
-            logger.warning("Stop-loss muito distante (>10% do preço atual)")
+        try:
+            if current_price <= 0 or stop_loss_price <= 0:
+                logger.error("Preços não podem ser negativos ou zero")
+                return False
+            
+            price_diff = abs(current_price - stop_loss_price)
+            if (price_diff / current_price) >= 0.10:  # Corrigido para >= 10%
+                logger.warning("Stop-loss muito distante (>=10% do preço atual)")
+                return False
+            return True
+        except Exception as e:
+            logger.error(f"Erro na validação: {e}")
             return False
-        return True

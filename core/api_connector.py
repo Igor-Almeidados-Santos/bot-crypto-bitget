@@ -25,9 +25,15 @@ class BitgetAPIConnector:
             return None
 
     def create_order(self, symbol, side, amount, order_type='market'):
-        """Cria uma ordem no mercado."""
+        """Cria ordem com parâmetros específicos da Bitget."""
         try:
-            order = self.exchange.create_order(symbol, order_type, side, amount)
+            order = self.exchange.create_order(
+                symbol,
+                order_type,
+                side,
+                amount,
+                params={'positionType': 'cross'}  # Parâmetro necessário para futuros
+            )
             logger.info(f"Ordem criada: {order}")
             return order
         except Exception as e:

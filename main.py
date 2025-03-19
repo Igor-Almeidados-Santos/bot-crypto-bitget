@@ -9,7 +9,7 @@ from utils.notifier import Notifier
 from config.settings import SYMBOL, TIMEFRAME, LEVERAGE, RISK_PER_TRADE
 
 # Configuração de logs
-logger.add("bot.log", rotation="500 MB", level="DEBUG")  # Alterado para DEBUG
+logger.add("bot.log", rotation="500 MB", level="INFO")
 
 def main(dry_run=False):
     api = BitgetAPIConnector()
@@ -41,8 +41,8 @@ def main(dry_run=False):
                 current_price = ticker['last']
                 
                 # 3. Calcular stop-loss e take-profit
-                stop_loss_price = current_price * 0.95  # 5% abaixo
-                take_profit_price = current_price * 1.10  # 10% acima
+                stop_loss_price = current_price * 0.98  # 2% abaixo
+                take_profit_price = current_price * 1.05  # 5% acima
                 
                 # 4. Validar risco
                 quantity, risk_amount = risk_manager.calculate_position_size(current_price, stop_loss_price)
@@ -86,6 +86,7 @@ def main(dry_run=False):
             time.sleep(10)  # Reinicia após falha
 
 def backtest_strategy(symbol, timeframe):
+    """Executa backtest com tratamento de erros."""
     try:
         api = BitgetAPIConnector()
         historical_data = api.exchange.fetch_ohlcv(symbol, timeframe=timeframe, limit=5000)
@@ -121,3 +122,7 @@ if __name__ == "__main__":
             logger.info(f"Resultados do backtest: {backtest_results}")
     else:
         main(dry_run=args.dry_run)
+    
+    if backtest_results:
+        backtest_results['results'].to_csv('backtest_results.csv', index=False)  # Salva CSV
+        logger.info("Resultados salvos em backtest_results.csv")    
