@@ -1,17 +1,16 @@
 import streamlit as st
-from decouple import config, UndefinedValueError
+from decouple import Config, RepositoryEnv, UndefinedValueError
 import pandas as pd
-import time
+import plotly.graph_objects as go
 from core.api_connector import BitgetAPIConnector
-from core.strategy import TradingStrategy
-from core.risk_manager import RiskManager
 
-# Configuração do .env
+# Carrega configurações do .env
 try:
-    DASHBOARD_USER = config('DASHBOARD_USER')
-    DASHBOARD_PASSWORD = config('DASHBOARD_PASSWORD')
-except UndefinedValueError:
-    st.error("Arquivo .env não encontrado ou variáveis ausentes")
+    env = Config(RepositoryEnv('.env'))
+    DASHBOARD_USER = env('DASHBOARD_USER')
+    DASHBOARD_PASSWORD = env('DASHBOARD_PASSWORD')
+except UndefinedValueError as e:
+    st.error(f"Erro na configuração: {e}")
     st.stop()
 
 # Login
@@ -23,13 +22,11 @@ def check_login():
         if username == DASHBOARD_USER and password == DASHBOARD_PASSWORD:
             st.session_state.logged_in = True
             st.success("Login bem-sucedido! Carregando dashboard...")
-            time.sleep(1)
-            st.rerun()  # Método correto
+            st.rerun()
         else:
             st.error("Usuário/Senha incorretos")
             st.session_state.logged_in = False
 
-# Página de login
 if 'logged_in' not in st.session_state:
     st.session_state.logged_in = False
 
@@ -37,14 +34,11 @@ if not st.session_state.logged_in:
     check_login()
     st.stop()
 else:
-    # Inicializa componentes APENAS após login
     api = BitgetAPIConnector()
-    strategy = TradingStrategy([])
-    risk_manager = RiskManager(balance=10000, symbol='BTC/USDT:USDT')
     st.set_page_config(page_title="Bitget Bot Monitor", layout="wide")
 
 # Dashboard principal
-st.title("📊 Monitoramento em Tempo Real")
+st.title(f"📊 Monitoramento - {api.symbol}")  # Usa símbolo da API
 
 # Dark mode
 dark_mode = st.sidebar.checkbox("🌙 Modo Escuro")
@@ -52,33 +46,43 @@ if dark_mode:
     st.config.set_option('theme.primaryColor', '#000000')
     st.config.set_option('theme.backgroundColor', '#0e1117')
 
-# Gráfico de velas
-ohlcv = api.exchange.fetch_ohlcv('BTC/USDT:USDT', timeframe='1m', limit=100)
-df = pd.DataFrame(ohlcv, columns=['timestamp', 'open', 'high', 'low', 'close', 'volume'])
-df['datetime'] = pd.to_datetime(df['timestamp'], unit='ms')
+# Gráfico de velas (WebSocket)
+st.title("🕯️ Gráfico de Velas (WebSocket)")
 
-st.title("🕯️ Gráfico de Velas (Candlestick)")
-st.write(f"Últimos {len(df)} candles")
-st.bar_chart(df.set_index('datetime')[['open', 'high', 'low', 'close']])
-
-# Métricas em tempo real
-def update_metrics():
-    ohlcv = api.exchange.fetch_ohlcv('BTC/USDT:USDT', timeframe='1m', limit=100)
-    strategy.data = pd.DataFrame(ohlcv, columns=['timestamp', 'open', 'high', 'low', 'close', 'volume'])
-    signal = strategy.generate_signal()
+if hasattr(api, 'trades') and api.trades:
+    df = pd.DataFrame(api.trades)
+    df['datetime'] = pd.to_datetime(df['timestamp'])
     
-    col1, col2, col3 = st.columns(3)
-    col1.metric("Último Sinal", signal)
-    col2.metric("RSI", strategy.data['rsi'].iloc[-1] if 'rsi' in strategy.data.columns else 0)
-    col3.metric("MACD", strategy.data['macd'].iloc[-1] if 'macd' in strategy.data.columns else 0)
+    # Resample para OHLC (1 minuto)
+    df_ohlc = df.set_index('datetime')['price'].resample('1T').ohlc()
+    df_ohlc.columns = ['open', 'high', 'low', 'close']
+    df_ohlc = df_ohlc.reset_index()
 
-placeholder = st.empty()
-while True:
-    with placeholder.container():
-        update_metrics()
-    time.sleep(10)
+    fig = go.Figure(data=[go.Candlestick(
+        x=df_ohlc['datetime'],
+        open=df_ohlc['open'],
+        high=df_ohlc['high'],
+        low=df_ohlc['low'],
+        close=df_ohlc['close']
+    )])
+    fig.update_layout(
+        title=f"{api.symbol} (1m)",
+        template='plotly_dark' if dark_mode else 'plotly_white'
+    )
+    st.plotly_chart(fig)
+else:
+    st.warning("Aguardando dados do WebSocket...")
 
-# Histórico de backtest
+# Histórico de trades
+st.title("📋 Histórico de Trades em Tempo Real")
+if hasattr(api, 'trades') and api.trades:
+    trades_df = pd.DataFrame(api.trades)
+    trades_df['timestamp'] = pd.to_datetime(trades_df['timestamp'])
+    st.dataframe(trades_df.style.applymap(lambda x: 'color: green' if x == 'buy' else 'color: red' if x == 'sell' else ''))
+else:
+    st.warning("Nenhum trade registrado ainda.")
+
+# Backtest
 st.title("📜 Histórico de Backtest")
 try:
     backtest_df = pd.read_csv('backtest_results.csv')

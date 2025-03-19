@@ -7,16 +7,19 @@ from core.risk_manager import RiskManager
 from core.backtester import Backtester
 from utils.notifier import Notifier
 from config.settings import SYMBOL, TIMEFRAME, LEVERAGE, RISK_PER_TRADE
+from decouple import Config, RepositoryEnv
 
 # Configuração de logs
 logger.add("bot.log", rotation="500 MB", level="INFO")
+
+config = Config(RepositoryEnv('.env'))
 
 def main(dry_run=False):
     api = BitgetAPIConnector()
     notifier = Notifier()
     
     # Notificação de inicialização
-    notifier.notify("🤖 Bot iniciado em modo " + ("SIMULAÇÃO" if dry_run else "REAL"))
+    notifier.send_telegram("🤖 Bot iniciado em modo " + ("SIMULAÇÃO" if dry_run else "REAL"))
     
     # Define saldo fictício para simulação
     if dry_run:
@@ -55,26 +58,28 @@ def main(dry_run=False):
                             amount=quantity,
                             order_type='market'
                         )
-                        notifier.notify(
-                            f"🚀 TRADE EXECUTADO\n"
-                            f"Sinal: {signal}\n"
-                            f"Quantidade: {quantity:.5f} {SYMBOL.split('/')[0]}\n"
-                            f"Preço: ${current_price:.2f}\n"
-                            f"Stop-Loss: ${stop_loss_price:.2f}\n"
-                            f"Take-Profit: ${take_profit_price:.2f}"
-                        )
+                        notifier.send_telegram(
+    f"🚀 TRADE EXECUTADO\n"
+    f"Sinal: {signal}\n"
+    f"Quantidade: {quantity:.5f} {SYMBOL.split('/')[0]}\n"  # Remove '/USDT:USDT'
+    f"Preço: ${current_price:.2f}\n"
+    f"Stop-Loss: ${stop_loss_price:.2f}\n"
+    f"Take-Profit: ${take_profit_price:.2f}"
+)
                         logger.success(f"Ordem executada: {order}")
                     else:
-                        notifier.notify(
-                            f"🤖 SIMULAÇÃO\n"
-                            f"Sinal: {signal}\n"
-                            f"Quantidade: {quantity:.5f} {SYMBOL.split('/')[0]}\n"
-                            f"Preço: ${current_price:.2f}"
-                        )
+                        notifier.send_telegram(
+    f"🚀 TRADE EXECUTADO\n"
+    f"Sinal: {signal}\n"
+    f"Quantidade: {quantity:.5f} {SYMBOL.split('/')[0]}\n"  # Remove '/USDT:USDT'
+    f"Preço: ${current_price:.2f}\n"
+    f"Stop-Loss: ${stop_loss_price:.2f}\n"
+    f"Take-Profit: ${take_profit_price:.2f}"
+)
                         logger.info(f"DRY RUN: Ordem simulada - {signal} {quantity} {SYMBOL}")
                 else:
                     logger.warning("Trade ignorado: Stop-loss inválido")
-                    notifier.notify(f"⚠️ Trade Ignorado: Stop-loss inválido para {SYMBOL}")
+                    notifier.send_telegram(f"⚠️ Trade Ignorado: Stop-loss inválido para {SYMBOL}")
 
             # Aguardar próximo ciclo
             time.sleep(60)  # 1 minuto (ajuste conforme timeframe)
@@ -82,7 +87,7 @@ def main(dry_run=False):
         except Exception as e:
             error_msg = f"🚨 ERRO CRÍTICO: {str(e)}"
             logger.error(error_msg)
-            notifier.notify(error_msg)
+            notifier.send_telegram(error_msg)
             time.sleep(10)  # Reinicia após falha
 
 def backtest_strategy(symbol, timeframe):
@@ -126,3 +131,14 @@ if __name__ == "__main__":
     if backtest_results:
         backtest_results['results'].to_csv('backtest_results.csv', index=False)  # Salva CSV
         logger.info("Resultados salvos em backtest_results.csv")    
+
+def test_env():
+    try:
+        print("BITGET_API_KEY:", config('BITGET_API_KEY'))
+        print("BITGET_API_SECRET:", config('BITGET_API_SECRET'))
+        print("BITGET_PASSPHRASE:", config('BITGET_PASSPHRASE'))
+    except Exception as e:
+        print("Erro ao carregar variáveis de ambiente:", e)
+
+if __name__ == "__main__":
+    test_env()        

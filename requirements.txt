@@ -15,3 +15,6 @@ pdoc
 pdoc3
 streamlit
 streamlit-autorefresh
+plotly
+websocket-client
+playsound
