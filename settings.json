@@ -1,0 +1,9 @@
+{
+    "rsi_buy": 35,
+    "rsi_sell": 65,
+    "macd_fast": 12,
+    "macd_slow": 26,
+    "macd_signal": 9,
+    "risk_per_trade": 0.01,
+    "leverage": 10
+}

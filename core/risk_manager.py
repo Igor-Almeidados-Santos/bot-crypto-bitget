@@ -1,5 +1,5 @@
 from loguru import logger
-from config.settings import RISK_PER_TRADE, LEVERAGE
+from config.settings import SettingsManager
 
 class RiskManager:
     def __init__(self, balance, symbol):
@@ -10,25 +10,14 @@ class RiskManager:
         """
         self.balance = balance
         self.symbol = symbol
+        self.settings = SettingsManager()  # Instancia configurações dinâmicas
 
     def calculate_position_size(self, entry_price, stop_loss_price):
-        """Calcula tamanho de posição com tratamento para preços iguais."""
-        try:
-            if entry_price <= stop_loss_price:
-                logger.error("Preço de entrada não pode ser <= stop-loss")
-                return 0, 0
-            
-            risk_amount = self.balance * RISK_PER_TRADE
-            delta_price = entry_price - stop_loss_price
-            quantity = (risk_amount / delta_price) * LEVERAGE
-            
-            return quantity, risk_amount
-        except ZeroDivisionError:
-            logger.error("Stop-loss igual ao preço de entrada (divisão por zero)")
-            return 0, 0
-        except Exception as e:
-            logger.error(f"Erro no cálculo de risco: {e}")
-            return 0, 0
+        """Calcula tamanho de posição com parâmetros dinâmicos."""
+        risk_amount = self.balance * self.settings.risk_per_trade  # Usa settings
+        delta_price = abs(entry_price - stop_loss_price)
+        quantity = (risk_amount / delta_price) * self.settings.leverage  # Usa settings
+        return quantity, risk_amount
 
     def validate_stop_loss(self, current_price, stop_loss_price):
         """Valida se o stop-loss está dentro de parâmetros seguros."""

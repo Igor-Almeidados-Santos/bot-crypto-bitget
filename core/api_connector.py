@@ -18,17 +18,17 @@ class BitgetAPIConnector:
         })
         self.exchange.load_markets()
         self.trades = []
-        self.symbol = config('SYMBOL')  # Obtém símbolo do .env
+        self.symbol = config('SYMBOL')
         self.ws = None
-        self.reconnect_attempts = 0  # Inicializa contador de reconexão
+        self.reconnect_attempts = 0
         
-        # Inicia WebSocket em thread separada
+        # Inicia WebSocket em thread
         self.start_websocket()
 
     def start_websocket(self):
-        """Reconecta WebSocket automaticamente."""
+        """Reconecta WebSocket automaticamente (loop infinito)."""
         def run_ws():
-            while self.reconnect_attempts < 5:  # Limita tentativas
+            while True:  # Loop infinito para reconexão
                 try:
                     self.ws = websocket.WebSocketApp(
                         "wss://ws.bitget.com/mix/v1/stream",
@@ -40,12 +40,11 @@ class BitgetAPIConnector:
                     self.ws.run_forever()
                 except Exception as e:
                     logger.error(f"Erro na conexão WebSocket: {e}")
+                    time.sleep(5 * (self.reconnect_attempts + 1))  # Atraso crescente
                     self.reconnect_attempts += 1
-                    time.sleep(5 * self.reconnect_attempts)  # Atraso crescente
-            logger.error("Falha na conexão WebSocket após 5 tentativas")
         
         Thread(target=run_ws, daemon=True).start()
-
+        
     def on_open(self, ws):
         """Assina canal de trades com símbolo formatado."""
         channel = f"trade.{self.symbol.replace('/', '').replace(':USDT', '')}"
@@ -70,15 +69,12 @@ class BitgetAPIConnector:
             logger.debug(f"Trade recebido: {trade}")
 
     def on_error(self, ws, error):
-        """Trata erros do WebSocket."""
         logger.error(f"WebSocket error: {error}")
 
     def on_close(self, ws, close_status_code, close_reason):
-        """Reconecta após fechar conexão."""
-        logger.warning(f"Conexão WebSocket fechada: {close_reason}")
-        self.reconnect_attempts += 1
+        logger.warning(f"WebSocket fechado: {close_reason}")
         time.sleep(5)
-        self.start_websocket()
+        self.start_websocket()  # Reinicia conexão
 
     def fetch_ticker(self, symbol):
         """Obtém ticker via REST API."""

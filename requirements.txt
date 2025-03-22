@@ -17,4 +17,6 @@ streamlit
 streamlit-autorefresh
 plotly
 websocket-client
-playsound
+python-telegram-bot
+asyncio
+mplfinance
