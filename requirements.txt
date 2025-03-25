@@ -20,3 +20,6 @@ websocket-client
 python-telegram-bot
 asyncio
 mplfinance
+pytest-asyncio
+pydantic
+aiofiles

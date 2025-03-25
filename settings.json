@@ -5,5 +5,12 @@
     "macd_slow": 26,
     "macd_signal": 9,
     "risk_per_trade": 0.01,
-    "leverage": 10
+    "leverage": 10,
+    "symbol": "BTC/USDT:USDT",
+    "timeframe": "1m",
+    "take_profit_percent": 2.0,
+    "stop_loss_percent": 1.0,
+    "trailing_stop_distance": 0.5,
+    "trade_frequency": 60,
+    "error_sleep_time": 30
 }

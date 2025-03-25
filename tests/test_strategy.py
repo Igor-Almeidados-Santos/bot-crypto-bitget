@@ -17,7 +17,7 @@ def test_strong_buy_signal(sample_data):
     
     # Mock correto para retornar dicionário
     with patch.object(strategy, 'calculate_rsi', return_value=30), \
-         patch.object(strategy, 'calculate_macd', return_value={'macd': 15, 'signal': 10}):  # MACD > Signal
+        patch.object(strategy, 'calculate_macd', return_value={'macd': 15, 'signal': 10}):  # MACD > Signal
         
         signal = strategy.generate_signal()
         assert signal == 'strong_buy'
@@ -28,7 +28,7 @@ def test_strong_sell_signal(sample_data):
     
     # Mock correto para retornar dicionário
     with patch.object(strategy, 'calculate_rsi', return_value=70), \
-         patch.object(strategy, 'calculate_macd', return_value={'macd': 5, 'signal': 10}):  # MACD < Signal
+        patch.object(strategy, 'calculate_macd', return_value={'macd': 5, 'signal': 10}):  # MACD < Signal
         
         signal = strategy.generate_signal()
         assert signal == 'strong_sell'
@@ -39,7 +39,7 @@ def test_hold_signal(sample_data):
     
     # Mock correto para retornar dicionário
     with patch.object(strategy, 'calculate_rsi', return_value=50), \
-         patch.object(strategy, 'calculate_macd', return_value={'macd': 10, 'signal': 10}):  # MACD == Signal
+        patch.object(strategy, 'calculate_macd', return_value={'macd': 10, 'signal': 10}):  # MACD == Signal
         
         signal = strategy.generate_signal()
         assert signal == 'hold'

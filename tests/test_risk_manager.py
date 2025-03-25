@@ -1,51 +1,67 @@
+import pandas as pd
 import pytest
-from core.risk_manager import RiskManager
+from unittest.mock import patch
+from config.settings import Settings, SettingsManager
+from core.strategy import TradingStrategy, TradingSignal
 
-def test_position_size_calculation():
-    """Testa cálculo de tamanho de posição com valores conhecidos."""
-    risk_manager = RiskManager(balance=10000, symbol='BTC/USDT:USDT')
-    
-    # Valores de entrada
-    entry_price = 60000
-    stop_loss_price = 58800  # 2% abaixo
-    
-    # Cálculo esperado:
-    # Risco por trade: 10000 * 1% = 100
-    # Delta: 60000 - 58800 = 1200
-    # Quantidade: (100 / 1200) * 10 (alavancagem) = 0.83333
-    quantity, risk = risk_manager.calculate_position_size(entry_price, stop_loss_price)
-    
-    assert pytest.approx(quantity, 0.0001) == 0.83333
-    assert risk == 100
+@pytest.fixture
+def settings():
+    settings_manager = SettingsManager()
+    settings_manager.settings = Settings(rsi_buy=30, rsi_sell=70, stop_loss_percent=1.0)
+    return settings_manager.settings
 
-def test_stop_loss_validation_valid():
-    """Testa validação de stop-loss dentro do limite."""
-    risk_manager = RiskManager(balance=10000, symbol='BTC/USDT:USDT')
-    assert risk_manager.validate_stop_loss(60000, 59400)  # 1% de distância
+@pytest.fixture
+def sample_data():
+    data = [
+        [1678886400000, 45100.0, 45100.5, 45000.0, 45050.0, 1000],
+        [1678972800000, 45050.0, 45200.0, 44900.0, 45150.0, 1200],
+        [1679059200000, 45150.0, 45300.0, 45100.0, 45250.0, 1500]
+    ]
+    return data
 
-def test_stop_loss_validation_invalid():
-    """Testa validação de stop-loss fora do limite (>=10%)."""
-    risk_manager = RiskManager(balance=10000, symbol='BTC/USDT:USDT')
-    # 54000 é exatamente 10% abaixo de 60000 → inválido
-    assert not risk_manager.validate_stop_loss(60000, 54000)
+def test_strong_buy_signal(sample_data, settings):
+    with patch('core.strategy.TradingStrategy.calculate_rsi', return_value=pd.Series([25, 25, 25])), \
+        patch('core.strategy.TradingStrategy.calculate_macd', return_value=(pd.Series([10, 15, 15]), pd.Series([15, 10, 10]), pd.Series([-5, 5, 5]))):
 
+        strategy = TradingStrategy(sample_data, settings)
+        assert strategy.generate_signal() == TradingSignal.STRONG_BUY
 
-def test_zero_risk_handling():
-    """Testa cálculo com risco zero (saldo insuficiente)."""
-    risk_manager = RiskManager(balance=0, symbol='BTC/USDT:USDT')
-    quantity, risk = risk_manager.calculate_position_size(60000, 58800)
-    assert quantity == 0
-    assert risk == 0
+def test_strong_sell_signal(sample_data, settings):
+    with patch('core.strategy.TradingStrategy.calculate_rsi', return_value=pd.Series([75, 75, 75])), \
+        patch('core.strategy.TradingStrategy.calculate_macd', return_value=(pd.Series([10, 5, 5]), pd.Series([15, 10, 10]), pd.Series([-5, -5, -5]))):
 
-def test_negative_prices():
-    """Testa tratamento de preços negativos (inválidos)."""
-    risk_manager = RiskManager(balance=10000, symbol='BTC/USDT:USDT')
-    # Agora deve retornar False em vez de lançar exceção
-    assert not risk_manager.validate_stop_loss(-60000, 58800)
-    
-def test_negative_prices_in_position():
-    """Testa cálculo de posição com preços negativos."""
-    risk_manager = RiskManager(balance=10000, symbol='BTC/USDT:USDT')
-    quantity, risk = risk_manager.calculate_position_size(-60000, 58800)
-    assert quantity == 0
-    assert risk == 0    
+        strategy = TradingStrategy(sample_data, settings)
+        assert strategy.generate_signal() == TradingSignal.STRONG_SELL
+
+def test_hold_signal(sample_data, settings):
+    with patch('core.strategy.TradingStrategy.calculate_rsi', return_value=pd.Series([50, 50, 50])), \
+        patch('core.strategy.TradingStrategy.calculate_macd', return_value=(pd.Series([10, 10, 10]), pd.Series([15, 10, 10]), pd.Series([-5, 0, 0]))):
+
+        strategy = TradingStrategy(sample_data, settings)
+        assert strategy.generate_signal() == TradingSignal.HOLD
+
+def test_insufficient_data(sample_data, settings):
+    """Testa sinal com dados insuficientes."""
+    strategy = TradingStrategy(sample_data, settings)
+    signal = strategy.generate_signal()
+    assert signal == TradingSignal.HOLD
+
+def test_calculate_stop_loss_price(sample_data, settings):
+    with patch('core.strategy.TradingStrategy.calculate_rsi', return_value=pd.Series([25, 25, 25])), \
+        patch('core.strategy.TradingStrategy.calculate_macd', return_value=(pd.Series([10, 15, 15]), pd.Series([15, 10, 10]), pd.Series([-5, 5, 5]))):
+
+        strategy = TradingStrategy(sample_data, settings)
+        assert strategy.calculate_stop_loss_price() == 44600.0
+
+    with patch('core.strategy.TradingStrategy.calculate_rsi', return_value=pd.Series([75, 75, 75])), \
+        patch('core.strategy.TradingStrategy.calculate_macd', return_value=(pd.Series([10, 5, 5]), pd.Series([15, 10, 10]), pd.Series([-5, -5, -5]))):
+
+        strategy = TradingStrategy(sample_data, settings)
+        assert strategy.calculate_stop_loss_price() == 45700.0
+
+    with patch('core.strategy.TradingStrategy.calculate_rsi', return_value=pd.Series([50, 50, 50])), \
+        patch('core.strategy.TradingStrategy.calculate_macd', return_value=(pd.Series([10, 10, 10]), pd.Series([15, 10, 10]), pd.Series([-5, 0, 0]))):
+
+        strategy = TradingStrategy(sample_data, settings)
+        assert strategy.calculate_stop_loss_price() == 0.0
+

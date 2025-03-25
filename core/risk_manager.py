@@ -1,8 +1,10 @@
+import asyncio
+
 from loguru import logger
 from config.settings import SettingsManager
 
 class RiskManager:
-    def __init__(self, balance, symbol):
+    def __init__(self, settings_manager: SettingsManager, balance, symbol):  # Recebe settings_manager
         """
         Args:
             balance (float): Saldo disponível na conta (ex.: USDT)
@@ -10,8 +12,10 @@ class RiskManager:
         """
         self.balance = balance
         self.symbol = symbol
-        self.settings = SettingsManager()  # Instancia configurações dinâmicas
-
+        self.settings_manager = settings_manager
+        asyncio.run(self.settings_manager.load())
+        self.settings = self.settings_manager.settings
+        
     def calculate_position_size(self, entry_price, stop_loss_price):
         """Calcula tamanho de posição com parâmetros dinâmicos."""
         risk_amount = self.balance * self.settings.risk_per_trade  # Usa settings
