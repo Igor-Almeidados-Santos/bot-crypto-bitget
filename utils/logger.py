@@ -1,3 +1,4 @@
+import asyncio
 from loguru import logger
 from core.risk_manager import RiskManager
 
@@ -6,7 +7,8 @@ class PositionManager:
         self.api = api
         self.settings = settings
         self.open_positions: Dict[str, Dict[str, Union[str, float]]] = {} # Type hint
-        self.risk_manager = RiskManager(balance=self.get_balance(), symbol=self.settings.symbol) # Initialize RiskManager
+        self.balance_task = asyncio.create_task(self.api.exchange.fetch_balance()) # Agenda a tarefa para obter o saldo
+        self.risk_manager = RiskManager(settings_manager=settings, balance=0, symbol=settings.symbol) # Initialize RiskManager com saldo 0
 
     def get_balance(self):
         try:
@@ -18,7 +20,7 @@ class PositionManager:
         
     async def open_position(self, symbol, side, quantity, entry_price):
         try:
-            order = await self.api.create_order(symbol, side, quantity, params={'stopLossPrice': self.calculate_stop_loss(side, entry_price)}) # Add stop-loss
+            order = await self.api.create_order(symbol, side, quantity) # Remove stopLossPrice
             self.open_positions[symbol] = {
                 "side": side,
                 "entry_price": entry_price,

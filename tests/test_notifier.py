@@ -9,13 +9,14 @@ from config.settings import Settings, SettingsManager
 from utils.notifier import Notifier
 
 @pytest.fixture
-def notifier():
-    settings_manager = SettingsManager()
+async def notifier(): # Fixture assíncrona
+    settings_manager = await SettingsManager() # Usa await
     settings_manager.settings = Settings(telegram_bot_token="TEST_TOKEN", telegram_chat_id="TEST_CHAT_ID")
-    return Notifier()
+    return Notifier(settings_manager) # Retorna o notifier
 
 @pytest.mark.asyncio
-async def test_start_with_telegram(notifier):
+async def test_start_with_telegram(event_loop, notifier): # Adiciona event_loop
+    notifier_instance = await notifier # Aguarda a fixture notifier
     """Testa a inicialização do notificador com Telegram."""
     with patch('utils.notifier.ApplicationBuilder') as MockAppBuilder:
         mock_app = AsyncMock()

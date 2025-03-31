@@ -13,7 +13,6 @@ class RiskManager:
         self.balance = balance
         self.symbol = symbol
         self.settings_manager = settings_manager
-        asyncio.run(self.settings_manager.load())
         self.settings = self.settings_manager.settings
         
     def calculate_position_size(self, entry_price, stop_loss_price):

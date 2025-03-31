@@ -48,7 +48,6 @@ class TradingStrategy:
         histogram = macd_line - signal_line
         return macd_line, signal_line, histogram
 
-
     def generate_signal(self) -> TradingSignal:
         """Gera sinal de trade."""
         if len(self.data) < 30:
@@ -78,5 +77,7 @@ class TradingStrategy:
             return self.data['close'].iloc[-1] * (1 - self.settings.stop_loss_percent / 100)
         elif self.signal == TradingSignal.STRONG_SELL:
             return self.data['close'].iloc[-1] * (1 + self.settings.stop_loss_percent / 100)
-        else:
+        elif self.signal == TradingSignal.HOLD: # Adiciona condição para TradingSignal.HOLD
             return 0.0
+        else:
+            return self.data['close'].iloc[-1] # Retorna o preço atual se o sinal não for de compra ou venda

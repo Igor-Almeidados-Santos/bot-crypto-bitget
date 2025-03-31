@@ -30,9 +30,6 @@ class Notifier:
         self.latest_strategy = None
         self.latest_price = 0
         self.dry_run = dry_run
-        
-        # Carrega as configurações aqui no construtor
-        asyncio.run(self._load_settings()) # Executa _load_settings de forma assíncrona
 
     async def _load_settings(self): # Método assíncrono para carregar as configurações
         await self.settings_manager.load()

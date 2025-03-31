@@ -10,9 +10,8 @@ from loguru import logger
 from tenacity import retry, wait_exponential, stop_after_attempt
 
 class BitgetAPIConnector:
-    def __init__(self):
-        self.settings_manager = SettingsManager()
-        asyncio.run(self.settings_manager.load())
+    def __init__(self, settings_manager: SettingsManager):
+        self.settings_manager = settings_manager
         self.settings = self.settings_manager.settings
 
         self.exchange: ccxt_async.bitget = ccxt_async.bitget({
@@ -61,8 +60,8 @@ class BitgetAPIConnector:
         }
         ws.send(json.dumps(subscribe_message))
         logger.info(f"Inscrito no canal WebSocket: {channel}")
-        asyncio.set_event_loop(asyncio.new_event_loop()) # Define um novo loop de eventos para a thread
-        asyncio.get_event_loop().run_until_complete(self.set_connected_event()) # Define o evento como True na thread
+        
+        asyncio.run_coroutine_threadsafe(self.set_connected_event(), asyncio.get_running_loop()) # Executa no loop principal
 
     async def set_connected_event(self):
         self.connected_event.set()
@@ -95,23 +94,16 @@ class BitgetAPIConnector:
 
     @retry(wait=wait_exponential(multiplier=1, min=1, max=5), stop=stop_after_attempt(2))
     async def create_order(self, symbol, side, amount, order_type='market', params={}):
-        """Cria uma ordem."""
-    async def create_order(self, symbol, side, amount, order_type='market', params={}):
         try:
-            if order_type == 'market':
-                order = await self.exchange.create_order(symbol, order_type, side, amount, params)
-            elif order_type == 'limit':
-                if 'price' not in params:
-                    raise ValueError("Price is required for limit orders")
-                if side == 'buy':
-                    order = await self.exchange.create_limit_buy_order(symbol, amount, params['price'], params) # Usa create_limit_buy_order
-                else:
-                    order = await self.exchange.create_limit_sell_order(symbol, amount, params['price'], params) # Usa create_limit_sell_order
-            else:
-                raise ValueError(f"Unsupported order type: {order_type}")
-
+            order = await self.exchange.create_order(symbol, order_type, side, amount, params) # type, side, amount, price, params={}
             logger.info(f"Ordem criada: {order}")
             return order
+        except ccxt_async.InsufficientFunds as e:
+            logger.error(f"Saldo insuficiente para criar ordem: {e}")
+            raise  # Re-raise InsufficientFunds
+        except Exception as e:
+            logger.exception("Erro ao criar ordem:")
+            return None
         except ccxt_async.InsufficientFunds as e: # Corrected exception type
             logger.error(f"Saldo insuficiente para criar ordem: {e}")
             raise  # Re-raise InsufficientFunds
@@ -133,7 +125,6 @@ class BitgetAPIConnector:
         except Exception as e:
             logger.exception("Erro ao fechar posição:")
             return None # Return None after logging the exception
-
 
     async def get_current_price(self, symbol):
         ticker = await self.fetch_ticker(symbol)
